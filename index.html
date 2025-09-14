@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KRW ↔ JPY Converter (Profit Calc)</title>
+  <style>
+    :root{--bg:#0f172a;--bg2:#0b1224;--card:#0b1220;--muted:#94a3b8;--fg:#e5e7eb;--accent:#22d3ee;--btn:#162033}
+    *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial}
+    html,body{height:100%}
+    body{margin:0;min-height:100vh;background:radial-gradient(3600px 1800px at 10% -20%,#0ea5e9 0,#0f172a 33%),linear-gradient(180deg,var(--bg) 0,var(--bg2) 100%);background-attachment:fixed;color:var(--fg)}
+    .wrap{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:32px}
+    .container{width:clamp(320px,92vw,900px)}
+    h1{font-size:clamp(20px,3.5vw,28px);margin:0 0 12px}
+    .card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:18px}
+    .row{display:grid;grid-template-columns:1fr;gap:16px}
+    @media(min-width:860px){.row{grid-template-columns:1.1fr 1fr}}
+    label{font-size:13px;color:var(--muted)}
+    input{width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(2,6,23,.6);color:var(--fg);font-size:16px}
+    .sep{height:1px;background:rgba(255,255,255,.12);margin:12px 0}
+    .btn{padding:8px 12px;border-radius:10px;background:var(--btn);border:1px solid rgba(255,255,255,.15);color:var(--fg);cursor:pointer}
+    .btn:hover{border-color:var(--accent)}
+    .mode{display:flex;gap:8px}
+    .tab{flex:1}
+    .active{outline:2px solid var(--accent)}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(148,163,184,.15);font-size:12px;margin-right:6px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    \.footer{margin-top:10px;color:var(--muted);font-size:12px;text-align:center}
+    /* footer semantic styles */
+    .footer-text{margin-top:10px;color:#cdd5e1;font-size:12px;text-align:center}
+    .footer-text .brand{color:#a8e6a3;font-weight:700}
+    .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) scale(0.98);background:rgba(34,211,238,.95);color:#05202a;padding:10px 14px;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .18s, transform .18s}
+    .toast::before{content:"";position:absolute;top:-8px;left:50%;transform:translateX(-50%);border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:8px solid rgba(34,211,238,.95)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="container">
+      <h1>KRW ↔ JPY クイック換算（利益試算つき）</h1>
+      <div class="card">
+        <div class="row">
+          <div>
+            <label>為替レート（1 KRW → 円）</label>
+            <input id="rateJPYperKRW" type="number" step="0.000001" placeholder="0.1100" />
+            <small style="color:var(--muted)">例: 0.1100 → 1ウォン=0.11円。入力すると下段に自動反映。</small>
+            <div class="sep"></div>
+            <label>別表記（100 円 あたりの ウォン）</label>
+            <input id="rateKRWper100JPY" type="number" step="0.01" placeholder="909.09" />
+            <small style="color:var(--muted)">ここに入力しても上のレートへ自動反映。</small>
+          </div>
+          <div>
+            <div class="mode" style="margin-bottom:8px">
+              <button type="button" class="btn tab active" id="modeK2J">🇰🇷 KRW ➡️ JPY 🇯🇵</button>
+              <button type="button" class="btn tab" id="modeJ2K">🇯🇵 JPY ➡️ KRW 🇰🇷</button>
+            </div>
+            <label id="srcLabel">ウォン (KRW) を入力</label>
+            <input id="src" type="text" inputmode="numeric" autocomplete="off" placeholder="621630" />
+            <div class="sep"></div>
+            <label id="resLabel">円 (JPY) の結果</label>
+            <input id="res" type="text" readonly placeholder="64300" />
+            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+              <button type="button" class="btn" id="copyRes">結果をコピー</button>
+              <button type="button" class="btn" id="clearAll">クリア</button>
+            </div>
+            <div class="sep"></div>
+            <div>
+              <span class="pill">利益試算</span>
+              <div class="grid2" style="margin-top:8px">
+                <div>
+                  <label>手数料率（%）</label>
+                  <input id="feePct" type="number" step="0.01" placeholder="10.8" />
+                </div>
+                <div>
+                  <label>送料（円）</label>
+                  <input id="shipJPY" type="number" step="1" placeholder="0" />
+                </div>
+              </div>
+              <div class="sep"></div>
+              <div class="grid2">
+                <div><label>A: 参考販売価格（円）</label><input id="calcA" type="text" readonly placeholder="-" /></div>
+                <div><label>手数料額（円）</label><input id="calcFee" type="text" readonly placeholder="-" /></div>
+                <div><label>B: 手数料控除後（円）</label><input id="calcB" type="text" readonly placeholder="-" /></div>
+                <div><label>C: 送料（円）</label><input id="calcC" type="text" readonly placeholder="-" /></div>
+                <div style="grid-column:1/3"><label>最終利益 A-B-C（円）</label>
+                  <div style="display:flex;gap:8px">
+                    <input id="calcNet" type="text" readonly placeholder="-" style="flex:1" />
+                    <button type="button" class="btn" id="copyNet">最終利益をコピー</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <footer>
+      <p class="footer-text">© Real Profit Calc, designed by <span class="brand">Haruka Living</span> 🌿</p>
+      </footer>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">コピーしました✓</div>
+
+  <script>
+    const $ = (s)=>document.querySelector(s);
+    const rateJPYperKRW = $('#rateJPYperKRW');
+    const rateKRWper100JPY = $('#rateKRWper100JPY');
+    const src = $('#src');
+    const res = $('#res');
+    const srcLabel = $('#srcLabel');
+    const resLabel = $('#resLabel');
+    const modeK2J = $('#modeK2J');
+    const modeJ2K = $('#modeJ2K');
+
+    const feePctEl = $('#feePct');
+    const shipJPYEl = $('#shipJPY');
+    const calcA = $('#calcA');
+    const calcFee = $('#calcFee');
+    const calcB = $('#calcB');
+    const calcC = $('#calcC');
+    const calcNet = $('#calcNet');
+
+    const sanitize = (v)=> (v||'').toString().replace(/[^0-9.\-]/g,'');
+    const fmt = (n)=> Number.isFinite(n)? n.toLocaleString('ja-JP'):'';
+    const num = (v)=>{ const t=parseFloat((v||'').toString().replace(/,/g,'')); return Number.isFinite(t)?t:0; };
+    const toast = $('#toast');
+    const showToast = (msg)=>{ toast.textContent=msg; toast.style.opacity='1'; toast.style.transform='translateX(-50%) scale(1)'; setTimeout(()=>{toast.style.opacity='0'; toast.style.transform='translateX(-50%) scale(0.98)';}, 900); };
+
+    function loadRate(){
+      const saved = localStorage.getItem('rateJPYperKRW');
+      const r = saved ? parseFloat(saved) : 0.10;
+      rateJPYperKRW.value = r.toFixed(5);
+      rateKRWper100JPY.value = (100/r).toFixed(2);
+      return r;
+    }
+    let rate = loadRate();
+
+    function setRateFromJPYperKRW(){
+      const v = parseFloat(rateJPYperKRW.value);
+      if(Number.isFinite(v) && v>0){ rate=v; localStorage.setItem('rateJPYperKRW',String(rate)); rateKRWper100JPY.value=(100/rate).toFixed(2); computeAll(); }
+    }
+    function setRateFromKRWper100JPY(){
+      const v = parseFloat(rateKRWper100JPY.value);
+      if(Number.isFinite(v) && v>0){ rate=100/v; localStorage.setItem('rateJPYperKRW',String(rate)); rateJPYperKRW.value=rate.toFixed(5); computeAll(); }
+    }
+
+    let mode='K2J';
+    function setMode(m){
+      mode=m; modeK2J.classList.toggle('active',m==='K2J'); modeJ2K.classList.toggle('active',m==='J2K');
+      if(m==='K2J'){ srcLabel.textContent='ウォン (KRW) を入力'; resLabel.textContent='円 (JPY) の結果'; src.placeholder='621630'; res.placeholder='64300'; }
+      else { srcLabel.textContent='円 (JPY) を入力'; resLabel.textContent='ウォン (KRW) の結果'; src.placeholder='64300'; res.placeholder='621630'; }
+      computeAll(); src.focus();
+    }
+
+    function computeAll(){
+      const raw = sanitize(src.value);
+      const val = parseFloat(raw);
+      if(!Number.isFinite(val)){ res.value=''; updateProfit(0); return; }
+
+      if(mode==='K2J'){
+        const jpy = Math.round(val * rate);
+        res.value = fmt(jpy);
+        updateProfit(jpy);
+      } else {
+        const krw = Math.round(val / rate);
+        res.value = fmt(krw);
+        updateProfit(Math.round(val));
+      }
+    }
+
+    function updateProfit(A){
+      if(!Number.isFinite(A) || A<=0){ calcA.value=calcFee.value=calcB.value=calcC.value=calcNet.value=''; return; }
+      const feePct = num(feePctEl.value || '10.8');
+      const fee = Math.round(A * (feePct/100));
+      const B = A - fee;
+      const C = Math.round(num(shipJPYEl.value));
+      const net = B - C;
+      calcA.value = fmt(A);
+      calcFee.value = fmt(fee);
+      calcB.value = fmt(B);
+      calcC.value = fmt(C);
+      calcNet.value = fmt(net);
+    }
+
+    rateJPYperKRW.addEventListener('input', setRateFromJPYperKRW);
+    rateJPYperKRW.addEventListener('change', setRateFromJPYperKRW);
+    rateKRWper100JPY.addEventListener('input', setRateFromKRWper100JPY);
+    rateKRWper100JPY.addEventListener('change', setRateFromKRWper100JPY);
+
+    src.addEventListener('input', ()=>{ src.value=sanitize(src.value); computeAll(); });
+    src.addEventListener('change', computeAll);
+
+    modeK2J.addEventListener('click', ()=> setMode('K2J'));
+    modeJ2K.addEventListener('click', ()=> setMode('J2K'));
+
+    $('#copyRes').addEventListener('click', ()=>{ const v=res.value.replace(/,/g,''); if(v){ navigator.clipboard.writeText(v); showToast('結果をコピーしました'); }});
+    $('#copyNet').addEventListener('click', ()=>{ const v=calcNet.value.replace(/,/g,''); if(v){ navigator.clipboard.writeText(v); showToast('最終利益をコピーしました'); }});
+    $('#clearAll').addEventListener('click', ()=>{ src.value=''; res.value=''; updateProfit(0); src.focus(); });
+
+    feePctEl.addEventListener('input', ()=> updateProfit(num(calcA.value.replace(/,/g,''))));
+    shipJPYEl.addEventListener('input', ()=> updateProfit(num(calcA.value.replace(/,/g,''))));
+
+    setMode('K2J');
+  </script>
+</body>
+</html>
